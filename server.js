@@ -1,5 +1,5 @@
 /**
- * Xanjo-World — server (Stage 1)
+ * Xanjo-World — server (Stage 2)
  * Minimal static file server for the Phaser client. Multiplayer comes later.
  */
 
@@ -34,5 +34,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`🌍 Xanjo-World — Stage 1 (circle + WASD) → http://localhost:${PORT}`);
+  console.log(`🌍 Xanjo-World — Stage 2 (Zenonia 4-inspired world) → http://localhost:${PORT}`);
 });

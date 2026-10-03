@@ -5,21 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Xanjo-World</title>
   <style>
-    html, body { margin: 0; height: 100%; overflow: hidden; background: #ffffff; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #101c10; }
     #game-container { position: fixed; inset: 0; }
     #hint {
-      position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
-      font-family: system-ui, -apple-system, sans-serif; font-size: 13px;
-      color: #9ca3af; pointer-events: none; user-select: none;
-      background: rgba(255,255,255,.85); padding: 6px 14px; border-radius: 999px;
-      border: 1px solid #e5e7eb;
+      position: fixed; top: 38%; left: 50%; transform: translate(-50%, -50%);
+      font-family: system-ui, -apple-system, sans-serif; font-size: 14px;
+      color: #ffffff; pointer-events: none; user-select: none;
+      background: rgba(0,0,0,.55); padding: 8px 18px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.25);
+      transition: opacity 1.2s ease; text-align: center; line-height: 1.5;
     }
   </style>
 </head>
 <body>
   <div id="game-container"></div>
-  <div id="hint">W A S D — move</div>
+  <div id="hint">W A S D — move<br />SPACE or ⚔ button — attack slimes</div>
   <script src="/phaser.min.js"></script>
   <script src="/game.js"></script>
+  <script>setTimeout(() => { document.getElementById('hint').style.opacity = '0'; }, 8000);</script>
 </body>
 </html>

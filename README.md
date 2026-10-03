@@ -1,13 +1,16 @@
 # 🌍 Xanjo-World
 
-A browser game built step by step. Current stage: **1 — a circle-shaped character moving on a blank canvas.**
+A browser game built step by step. Current stage: **2 — a Zenonia 4-inspired world: grass map, forests, camera follow, HUD, minimap, slimes & sword combat.**
 
-## ✅ Stage 1 (current)
+## ✅ Stage 2 (current) — Zenonia 4 inspired
 
-- A circle-shaped character (indigo, with simple eyes)
-- Movement with **W A S D** (arrow keys also work)
-- Smooth 60fps, diagonal movement normalized, character stays inside the canvas
-- **Blank white canvas** — the world gets added next
+- Painted top-down world (2560×1920): grass patches, dirt path, flowers, tufts, pebbles, mushrooms — 100% procedural art
+- Forest clusters + rocks with circle collision; y-sorted depth so you walk behind/in front of props
+- Smooth clamped camera follow; hero gets walk-bob, drop shadow, look-direction pupils and a sword
+- Zenonia-style HUD: HP bar, EXP bar, LVL badge, minimap (trees/rocks/slimes/viewport), enemy target plate, pause/bag/Shop cluster, touch-style buttons bottom-right
+- Slimes wander, hop, get knocked back, show HP bars, poof on death and respawn; killing them grants EXP and level-ups
+- Combat: **SPACE** or the ⚔ button swings the sword in an arc in the facing direction
+- Movement: **W A S D** / arrow keys
 
 ## Tech stack
 
@@ -38,7 +41,8 @@ mmorpg/
 ## Roadmap
 
 1. ✅ Circle character + WASD + blank canvas
-2. A tiled world + a camera that follows you
-3. Obstacles + collision
-4. Second player over WebSocket (server-authoritative)
-5. Monsters, combat, chat, inventory, zones…
+2. ✅ Zenonia 4-inspired world: grass map, forests + collision, camera follow, HUD, minimap, slimes + sword combat
+3. Skills, more monsters, loot & inventory
+4. Chibi sprite hero (Zenonia-style) replacing the circle placeholder
+5. Second player over WebSocket (server-authoritative)
+6. Chat, zones/channels, persistence…
