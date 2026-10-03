@@ -1,5 +1,7 @@
 # 🌍 Xanjo-World
 
+**Play online (GitHub Pages): <https://axistence99.github.io/Xanjo-World/>** · [Progress tracker / changelog](CHANGELOG.md)
+
 A browser game built step by step. Current stage: **2 — a Zenonia 4-inspired world with a chibi swordsman hero: grass map, forests, camera follow, HUD, minimap, slimes & sword combat.**
 
 ## ✅ Stage 2 (current) — Zenonia 4 inspired
@@ -32,11 +34,13 @@ node server.js   # → http://localhost:8080
 
 ```
 mmorpg/
-├── server.js            # static file server
+├── server.js                   # static file server (local dev)
+├── CHANGELOG.md                # progressive tracker of all updates
+├── .github/workflows/pages.yml # deploys public/ to GitHub Pages on push
 └── public/
-    ├── index.html       # page shell
-    ├── game.js          # Phaser 3 client (the circle + WASD)
-    └── phaser.min.js    # Phaser 3, bundled locally
+    ├── index.html              # page shell
+    ├── game.js                 # Phaser 3 client (world + swordsman + slimes)
+    └── phaser.min.js           # Phaser 3, bundled locally
 ```
 
 ## Roadmap
