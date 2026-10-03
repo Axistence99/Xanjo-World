@@ -16,6 +16,9 @@ at a glance.
 ### Changed
 - `index.html` now loads scripts with **relative paths**, so the same files work both from the local Node server and from the Pages subfolder
 
+### Fixed
+- Pages workflow: dropped `actions/configure-pages` (it 404s on repos where Pages was never enabled); `actions/deploy-pages` provisions the site on first deploy
+
 ---
 
 ## 2026-10-03 — Stage 2.5 · Swordsman sprite

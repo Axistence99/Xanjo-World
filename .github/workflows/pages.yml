@@ -21,8 +21,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
+      # NOTE: no actions/configure-pages here on purpose — it 404s on repos
+      # where Pages was never enabled. actions/deploy-pages provisions the
+      # site itself on the first deployment.
       - name: Upload artifact (the game client)
         uses: actions/upload-pages-artifact@v3
         with:
