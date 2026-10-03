@@ -1,6 +1,6 @@
 # 🌍 Xanjo-World
 
-A browser game built step by step. Current stage: **2 — a Zenonia 4-inspired world: grass map, forests, camera follow, HUD, minimap, slimes & sword combat.**
+A browser game built step by step. Current stage: **2 — a Zenonia 4-inspired world with a chibi swordsman hero: grass map, forests, camera follow, HUD, minimap, slimes & sword combat.**
 
 ## ✅ Stage 2 (current) — Zenonia 4 inspired
 
@@ -11,6 +11,7 @@ A browser game built step by step. Current stage: **2 — a Zenonia 4-inspired w
 - Slimes wander, hop, get knocked back, show HP bars, poof on death and respawn; killing them grants EXP and level-ups
 - Combat: **SPACE** or the ⚔ button swings the sword in an arc in the facing direction
 - Movement: **W A S D** / arrow keys
+- **Chibi swordsman hero** (Zenonia-style: blond spiky hair, blue tunic, sword): code-painted sprite frames with a 4-frame walk cycle and 4-frame attack swing for down/up/side (right is mirrored), played via Phaser animations
 
 ## Tech stack
 
@@ -43,6 +44,5 @@ mmorpg/
 1. ✅ Circle character + WASD + blank canvas
 2. ✅ Zenonia 4-inspired world: grass map, forests + collision, camera follow, HUD, minimap, slimes + sword combat
 3. Skills, more monsters, loot & inventory
-4. Chibi sprite hero (Zenonia-style) replacing the circle placeholder
-5. Second player over WebSocket (server-authoritative)
-6. Chat, zones/channels, persistence…
+4. Second player over WebSocket (server-authoritative)
+5. Chat, zones/channels, persistence…

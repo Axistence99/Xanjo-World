@@ -1,16 +1,15 @@
 /**
- * Xanjo-World — Stage 2 (Zenonia 4 inspired)
+ * Xanjo-World — Stage 2.5 (Zenonia 4 inspired)
  *
- * What changed from Stage 1 (circle + blank canvas):
- *  - A big scrolling world (2560x1920) of painted grass: patches, a dirt
- *    path, flowers, tufts, pebbles, mushrooms — all drawn in code.
- *  - Forest clusters of trees + rocks with circle collision, y-sorted depth
- *    so you walk behind/in front of them like a classic top-down RPG.
- *  - Smooth camera that follows the circle hero (with walk-bob + shadow).
- *  - Zenonia-style HUD: HP bar, EXP bar, LVL badge, minimap, target plate,
- *    pause/bag/Shop cluster, and touch-style buttons bottom-right.
- *  - Slimes wander the world. Hit them with SPACE (or the ⚔ button):
- *    damage numbers, knockback, HP bars, death poof, EXP + level ups.
+ * New: the circle placeholder is replaced by a CHIBI SWORDSMAN sprite —
+ * blond spiky hair, blue tunic, sword in hand, like the Zenonia 4 hero.
+ * Sprite frames (walk cycle + 4-frame attack swing for down/up/side,
+ * mirrored for right) are painted in code into textures at boot, then
+ * played with Phaser animations.
+ *
+ * Also in this stage: painted grass world, forests + collision, camera
+ * follow, Zenonia HUD (HP/EXP/LVL, minimap, target plate), wandering
+ * slimes with knockback/EXP/level-ups.
  *
  * Engine: Phaser 3 (bundled locally). Art: 100% procedural.
  */
@@ -25,6 +24,8 @@ const WORLD_H = 1920;
 const PLAYER_R = 14;      // collision radius of the hero
 const SPEED = 240;        // px per second
 const SLIME_SPEED = 46;
+const FRAME_W = 48;       // hero sprite frame size
+const FRAME_H = 56;
 
 /* Seeded RNG so the world is identical on every load (matters later,
    when the server needs to agree with clients about the map). */
@@ -38,6 +39,7 @@ function mulberry32(seed) {
 }
 const rand = mulberry32(20261003);
 const between = (a, b) => a + rand() * (b - a);
+const rad = (deg) => (deg * Math.PI) / 180;
 
 /* ------------------------------------------------------------------ */
 /* State                                                               */
@@ -45,11 +47,12 @@ const between = (a, b) => a + rand() * (b - a);
 let S = null;             // the Phaser scene
 let keys, cursors, spaceKey;
 let player;               // logic state of the hero
-let playerGfx, swordSprite, shadowSprite, pupilL, pupilR;
+let heroSprite, shadowSprite;
 let hudG, mapG, plateG, hudLevelText, plateName, plateLvl;
 let obstacles = [];       // { x, y, r } — tree trunks & rocks
 let slimes = [];
-let walkPhase = 0, moving = false, attackCooldown = 0, swinging = false;
+let lastDir = 'down';
+let moving = false, attackCooldown = 0, swinging = false;
 
 new Phaser.Game({
   type: Phaser.AUTO,
@@ -67,6 +70,8 @@ function create() {
   S = this;
 
   makeTextures(S);
+  makeHeroFrames(S);
+  makeHeroAnims(S);
   paintGround(S);
   S.add.image(WORLD_W / 2, WORLD_H / 2, 'ground').setDepth(0);
 
@@ -108,23 +113,20 @@ function create() {
   });
   S.props = props;
 
-  /* ---- the hero (still our circle, now with shadow, bob & sword) ---- */
+  /* ---- the hero: chibi swordsman sprite ---- */
   player = {
     x: WORLD_W / 2, y: WORLD_H / 2,
     facing: Math.PI / 2,
     level: 1, exp: 0, expNext: 40,
     hp: 100, maxHp: 100,
   };
-  shadowSprite = S.add.image(player.x, player.y + 12, 'shadow').setDepth(1);
-  playerGfx = S.add.container(player.x, player.y);
-  const body = S.add.circle(0, 0, 16, 0x4f46e5).setStrokeStyle(3, 0x3730a3);
-  const eyeL = S.add.circle(-6, -4, 3.5, 0xffffff);
-  const eyeR = S.add.circle(6, -4, 3.5, 0xffffff);
-  pupilL = S.add.circle(-6, -4, 1.8, 0x111827);
-  pupilR = S.add.circle(6, -4, 1.8, 0x111827);
-  swordSprite = S.add.image(0, 0, 'sword').setOrigin(0.2, 0.5);
-  swordSprite.rotation = player.facing + 0.9;
-  playerGfx.add([swordSprite, body, eyeL, eyeR, pupilL, pupilR]);
+  shadowSprite = S.add.image(player.x, player.y + 6, 'shadow').setDepth(1);
+  heroSprite = S.add.sprite(player.x, player.y, 'hero-down-walk-1')
+    .setOrigin(0.5, 0.93)   // feet anchor, so depth-sorting works
+    .setScale(1.1);
+  heroSprite.on('animationcomplete', (anim) => {
+    if (anim.key.startsWith('atk-')) swinging = false;
+  });
 
   /* ---- slimes ---- */
   for (let i = 0; i < 5; i++) spawnSlime();
@@ -194,7 +196,7 @@ function update(_time, delta) {
     player.facing = Math.atan2(dy, dx);
     player.x += (dx / len) * SPEED * dt;
     player.y += (dy / len) * SPEED * dt;
-    walkPhase += dt * 11;
+    lastDir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
   }
   if (spaceKey.isDown) tryAttack();
 
@@ -207,17 +209,20 @@ function update(_time, delta) {
   player.x = Phaser.Math.Clamp(player.x, PLAYER_R, WORLD_W - PLAYER_R);
   player.y = Phaser.Math.Clamp(player.y, PLAYER_R, WORLD_H - PLAYER_R);
 
-  /* ---- hero visuals: bob, shadow, depth, pupils, sword carry ---- */
-  const bob = moving ? Math.abs(Math.sin(walkPhase)) * 3 : 0;
-  playerGfx.setPosition(player.x, player.y - bob);
-  playerGfx.setDepth(player.y);
-  shadowSprite.setPosition(player.x, player.y + 12);
-  shadowSprite.setScale(1 - bob * 0.03);
+  /* ---- hero sprite: pick animation for direction / attack / idle ---- */
+  const texDir = lastDir === 'right' ? 'left' : lastDir;   // right = mirrored left
+  heroSprite.setFlipX(lastDir === 'right');
+  if (swinging) {
+    heroSprite.play('atk-' + texDir, true);                // true = ignore if already playing
+  } else if (moving) {
+    heroSprite.play('walk-' + texDir, true);
+  } else {
+    heroSprite.play('idle-' + texDir, true);
+  }
+  heroSprite.setPosition(player.x, player.y);
+  heroSprite.setDepth(player.y);
+  shadowSprite.setPosition(player.x, player.y + 6);
   shadowSprite.setDepth(player.y - 1);
-  const ex = Math.cos(player.facing) * 2.5, ey = Math.sin(player.facing) * 2.5 - 4;
-  pupilL.setPosition(-6 + ex, ey);
-  pupilR.setPosition(6 + ex, ey);
-  if (!swinging) swordSprite.rotation = player.facing + 0.9;
 
   /* ---- slimes ---- */
   for (const s of slimes) updateSlime(s, dt);
@@ -309,15 +314,10 @@ function updateSlime(s, dt) {
 /* ------------------------------------------------------------------ */
 function tryAttack() {
   if (attackCooldown > 0 || swinging) return;
-  attackCooldown = 0.38;
-  swinging = true;
-  swordSprite.rotation = player.facing - 1.15;
-  S.tweens.add({
-    targets: swordSprite, rotation: player.facing + 1.15, duration: 200, ease: 'Cubic.Out',
-    onComplete: () => { swinging = false; },
-  });
+  attackCooldown = 0.42;
+  swinging = true;   // cleared by 'animationcomplete' when the swing anim ends
   S.time.addEvent({
-    delay: 80,
+    delay: 100,
     callback: () => {
       for (const s of slimes) {
         const dx = s.x - player.x, dy = s.y - player.y;
@@ -456,7 +456,142 @@ function drawTargetPlate() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Procedural textures                                                 */
+/* Hero sprite frames — the chibi swordsman                            */
+/* ------------------------------------------------------------------ */
+/* Sword angles (degrees, screen space) per direction & frame. */
+const WALK_SWORD = { down: -45, up: -45, left: -35 };
+const ATK_SWORD = {
+  down: [-90, 10, 60, 100],          // overhead chop toward the camera
+  up: [110, 30, -60, -90],           // swing up into a thrust
+  left: [-70, 150, 185, 220],        // classic side slash
+};
+
+function makeHeroFrames(scene) {
+  const g = scene.make.graphics();
+  for (const dir of ['down', 'up', 'left']) {
+    for (let i = 0; i < 4; i++) {
+      paintHero(g, dir, 'walk', i);
+      g.generateTexture(`hero-${dir}-walk-${i}`, FRAME_W, FRAME_H);
+      g.clear();
+    }
+    for (let i = 0; i < 4; i++) {
+      paintHero(g, dir, 'atk', i);
+      g.generateTexture(`hero-${dir}-atk-${i}`, FRAME_W, FRAME_H);
+      g.clear();
+    }
+  }
+  g.destroy();
+}
+
+function makeHeroAnims(scene) {
+  for (const dir of ['down', 'up', 'left']) {
+    scene.anims.create({
+      key: 'walk-' + dir, frameRate: 9, repeat: -1,
+      frames: [0, 1, 2, 3].map((i) => ({ key: `hero-${dir}-walk-${i}` })),
+    });
+    scene.anims.create({
+      key: 'atk-' + dir, frameRate: 14, repeat: 0,
+      frames: [0, 1, 2, 3].map((i) => ({ key: `hero-${dir}-atk-${i}` })),
+    });
+    scene.anims.create({
+      key: 'idle-' + dir, frameRate: 1,
+      frames: [{ key: `hero-${dir}-walk-1` }],
+    });
+  }
+}
+
+/* Paints one 48x56 frame of the chibi swordsman into a Graphics. */
+function paintHero(g, dir, kind, i) {
+  const cx = 24, feet = 52;
+  const lift = [0, 1, 2, 1][i];            // 0 = left leg up, 2 = right leg up
+  const bob = kind === 'walk' ? [0, 1, 0, 1][i] : 0;
+  const y = -bob;
+
+  /* legs: dark pants + brown boots; lifted leg is shorter & raised */
+  const leg = (lx, lifted) => {
+    const ly = lifted ? feet - 6 : feet - 8;
+    const lh = lifted ? 6 : 8;
+    g.fillStyle(0x37474f); g.fillRect(lx, ly, 5, lh - 3);
+    g.fillStyle(0x5d4037); g.fillRect(lx, ly + lh - 3, 5, 3);
+  };
+  leg(cx - 6, lift === 0);
+  leg(cx + 1, lift === 2);
+
+  /* sword arm angle for this frame */
+  const angle = rad(kind === 'walk' ? WALK_SWORD[dir] : ATK_SWORD[dir][i]);
+
+  /* body: blue tunic + belt */
+  g.lineStyle(1.5, 0x2c3e70);
+  g.fillStyle(0x4a69bd); g.fillRoundedRect(cx - 8, 32 + y, 16, 13, 3);
+  g.strokeRoundedRect(cx - 8, 32 + y, 16, 13, 3);
+  g.fillStyle(0x6d4c41); g.fillRect(cx - 8, 41 + y, 16, 3);
+  g.fillStyle(0xffd54f); g.fillRect(cx - 1, 41 + y, 2, 3);
+
+  /* back arm */
+  g.fillStyle(0xffdca8); g.fillCircle(cx - 9, 37 + y, 3);
+
+  /* head + hair (blond & spiky, Zenonia style) */
+  const HAIR = 0xf6d34a, SKIN = 0xffdca8;
+  if (dir === 'up') {
+    /* back view: hair covers the whole head */
+    g.fillStyle(HAIR); g.fillCircle(cx, 22 + y, 10);
+    g.fillTriangle(cx - 9, 16 + y, cx - 13, 10 + y, cx - 4, 12 + y);
+    g.fillTriangle(cx - 2, 12 + y, cx + 1, 7 + y, cx + 5, 12 + y);
+    g.fillTriangle(cx + 6, 14 + y, cx + 12, 9 + y, cx + 9, 18 + y);
+    g.fillStyle(0xfbe27a); g.fillCircle(cx - 3, 18 + y, 4);
+  } else {
+    g.fillStyle(SKIN); g.fillCircle(cx, 23 + y, 9);
+    g.fillStyle(HAIR); g.fillCircle(cx + (dir === 'left' ? 1.5 : 0), 20 + y, 9.8);
+    /* face window */
+    g.fillStyle(SKIN);
+    g.fillCircle(cx + (dir === 'left' ? -2 : 0), 25 + y, dir === 'left' ? 6.8 : 7.4);
+    /* spikes */
+    if (dir === 'down') {
+      g.fillStyle(HAIR);
+      g.fillTriangle(cx - 9, 17 + y, cx - 13, 12 + y, cx - 5, 13 + y);
+      g.fillTriangle(cx + 9, 17 + y, cx + 13, 12 + y, cx + 5, 13 + y);
+      g.fillTriangle(cx - 3, 11 + y, cx, 6 + y, cx + 4, 11 + y);
+      /* fringe */
+      g.fillTriangle(cx - 7, 19 + y, cx - 2, 19 + y, cx - 4.5, 23 + y);
+      g.fillTriangle(cx + 1, 19 + y, cx + 6, 19 + y, cx + 3.5, 23 + y);
+      g.fillStyle(0x3b2a1a);
+      g.fillCircle(cx - 3, 25 + y, 1.5); g.fillCircle(cx + 3, 25 + y, 1.5);
+    } else {
+      g.fillStyle(HAIR);
+      g.fillTriangle(cx + 8, 16 + y, cx + 14, 12 + y, cx + 9, 21 + y);   // back spikes
+      g.fillTriangle(cx + 7, 22 + y, cx + 13, 21 + y, cx + 8, 26 + y);
+      g.fillTriangle(cx - 2, 11 + y, cx + 2, 6 + y, cx + 5, 11 + y);
+      g.fillTriangle(cx - 8, 18 + y, cx - 3, 18 + y, cx - 5.5, 22 + y);  // fringe
+      g.fillStyle(0x3b2a1a); g.fillCircle(cx - 4.5, 25 + y, 1.6);        // one eye
+    }
+  }
+
+  /* sword + sword arm on top */
+  const hx = cx + (dir === 'left' ? 7 : 9), hy = 37 + y;
+  drawSword(g, hx, hy, angle);
+  g.fillStyle(SKIN); g.fillCircle(hx, hy, 3);
+}
+
+/* Blade triangle + gold guard + brown grip, rotated to `a` radians. */
+function drawSword(g, hx, hy, a) {
+  const dx = Math.cos(a), dy = Math.sin(a);
+  const px = -dy, py = dx;
+  const P = (along, side) => ({ x: hx + dx * along + px * side, y: hy + dy * along + py * side });
+  /* grip */
+  g.lineStyle(3, 0x6d4c41);
+  g.beginPath(); g.moveTo(hx - dx * 3, hy - dy * 3); g.lineTo(hx + dx * 5, hy + dy * 5); g.strokePath();
+  /* blade */
+  const b1 = P(5, 1.8), b2 = P(5, -1.8), tip = P(21, 0);
+  g.fillStyle(0xcfd8dc); g.fillPoints([b1, b2, tip], true);
+  g.lineStyle(1, 0x90a4ae); g.strokePoints([b1, b2, tip], true);
+  /* guard */
+  g.lineStyle(2.5, 0xffd54f);
+  g.beginPath(); g.moveTo(hx + dx * 5 - px * 3.5, hy + dy * 5 - py * 3.5);
+  g.lineTo(hx + dx * 5 + px * 3.5, hy + dy * 5 + py * 3.5); g.strokePath();
+}
+
+/* ------------------------------------------------------------------ */
+/* World & prop textures                                               */
 /* ------------------------------------------------------------------ */
 function makeTextures(scene) {
   const g = scene.make.graphics();
@@ -496,7 +631,7 @@ function makeTextures(scene) {
   g.lineStyle(2, 0x8d6e63); g.beginPath(); g.moveTo(22, 8); g.lineTo(24, 3); g.strokePath();
   g.generateTexture('slime', 44, 36); g.clear();
 
-  /* sword (origin set to the grip when used) */
+  /* sword icon (UI button) */
   g.fillStyle(0xcfd8dc); g.fillRect(10, 4, 24, 4);
   g.fillStyle(0x90a4ae); g.fillTriangle(34, 4, 34, 8, 40, 6);
   g.fillStyle(0xffd54f); g.fillRect(8, 2, 3, 8);
